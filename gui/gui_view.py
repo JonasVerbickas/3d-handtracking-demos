@@ -1,8 +1,8 @@
 import dearpygui.dearpygui as dpg
 import cv2
 import numpy as np
-from keypoint_estimator_enum import KeypointEstimatorEnum
-from palm_detector_enum import PalmDetectorEnum
+from consts.keypoint_estimator_enum import KeypointEstimatorEnum
+from consts.palm_detector_enum import PalmDetectorEnum
 
 class View:
     def __init__(self, video_width, video_height, keypoint_estimator_callback):
@@ -10,7 +10,6 @@ class View:
         # dpg.configure_app(docking=True, docking_space=True)
         dpg.create_viewport(title="Hand Tracking Demo")
         dpg.setup_dearpygui()
-        # dpg.set_global_font_scale(1.05)
         with dpg.texture_registry(show=False):
             dpg.add_raw_texture(video_width, video_height,
                                 default_value=[], tag="frame")
