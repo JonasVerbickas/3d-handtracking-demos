@@ -5,7 +5,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
 hands = mp_hands.Hands(
-    max_num_hands=4,
+    max_num_hands=1,
         model_complexity=1,
         static_image_mode=False,
         min_detection_confidence=0.5,
