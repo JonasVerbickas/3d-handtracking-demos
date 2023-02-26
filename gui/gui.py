@@ -16,7 +16,7 @@ class GUI:
         """
         self.model.load_keypoint_estimator(KeypointEstimatorEnum[app_data])
         dpg.configure_item(
-            "palm_detector_combo", show=KeypointEstimatorEnum[app_data] == KeypointEstimatorEnum.MESHFORMER)
+            "palm_detector_combo", show=self.model.keypoint_estimator.requires_detector)
 
     def render_loop(self):
         """

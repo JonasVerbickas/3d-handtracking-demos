@@ -24,6 +24,7 @@ In descending order of priority
 ### General Stuff
 - [ ] Arguments for the architecture/designed patterns used
 - [ ] Possible issues with LICENSE with GANerated Hands and MANO mesh
+- [ ] There will be issues with filepaths on Windows
 
 ## References
 Hand Detection Models
