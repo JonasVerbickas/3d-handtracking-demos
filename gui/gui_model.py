@@ -24,8 +24,8 @@ class Model:
             self.keypoint_estimator = Identity()
     
     def load_palm_detector(self, palm_detector: PalmDetectorEnum) -> None:
-        #self.palm_detector = YOLO()
-        self.palm_detector = BlazePalm()
+        self.palm_detector = YOLO()
+        # self.palm_detector = BlazePalm()
 
     def init_camera(self) -> Tuple[int,int]:
         """
@@ -38,23 +38,25 @@ class Model:
         width, height = frame.shape[1], frame.shape[0]
         return width, height
 
-    def get_new_annotated_frame(self) -> np.ndarray:
+    def get_new_annotated_frame(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Retrieves new frame from webcam.
         Runs the selected model on that frame.
         Returns frame with keypoints drawn on it.
         """
+        # 1. get a new video frame
         ret, frame = self.cap.read()
         assert ret
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        assert frame.shape[0] > 0
+        # 2. if model requires it crop a hand before estimation
         if self.keypoint_estimator.requires_detector:
-            cropped_frame = self.palm_detector(frame)
-            if cropped_frame is not None:
-                frame[:cropped_frame.shape[0], :cropped_frame.shape[1]] = cropped_frame
-            return frame
+            detected_hand = self.palm_detector(frame)
         else:
-            return self.keypoint_estimator(frame)
+            detected_hand = frame
+        # 3. project cropped estimation back on the image
+        # TODO
+        # 4. return both the cropped result and estimation
+        return detected_hand, self.keypoint_estimator(detected_hand)
         
 
         
