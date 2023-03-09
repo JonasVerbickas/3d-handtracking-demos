@@ -24,10 +24,8 @@ class Model:
             self.keypoint_estimator = Identity()
     
     def load_palm_detector(self, palm_detector: PalmDetectorEnum) -> None:
-        # if palm_detector == PalmDetectorEnum.YOLO:
-        self.palm_detector = YOLO()
-        # else:
-        #     self.palm_detector = BlazePalm()
+        #self.palm_detector = YOLO()
+        self.palm_detector = BlazePalm()
 
     def init_camera(self) -> Tuple[int,int]:
         """

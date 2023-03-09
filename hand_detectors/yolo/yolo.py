@@ -1,11 +1,17 @@
 # Implementation taken from https://github.com/cansik/yolo-hand-detection
 import time
+import os
 import cv2
 import numpy as np
 from typing import Union
 
-CONFIG_PATH = "/Users/jonas/git/3rdYearProject/HandTracking GUIs/hands_via_dear_py/hand_detectors/yolo/dependencies/cross-hands-tiny.cfg"
-MODEL_PATH = "/Users/jonas/git/3rdYearProject/HandTracking GUIs/hands_via_dear_py/hand_detectors/yolo/dependencies/cross-hands-tiny.weights"
+if __name__ != '__main__':
+    PARENT_PATH = 'hand_detectors/yolo'
+else:
+    PARENT_PATH = '.'
+
+CONFIG_PATH = os.path.join(PARENT_PATH, "dependencies", "cross-hands-tiny.cfg")
+MODEL_PATH = os.path.join(PARENT_PATH, "dependencies", "cross-hands-tiny.weights")
 
 
 class YOLO:
@@ -15,6 +21,8 @@ class YOLO:
         self.size = size
         self.output_names = []
         self.labels = ['hand']
+        print("Yolo config path:", CONFIG_PATH)
+        print("Yolo model path:", MODEL_PATH)
         try:
             self.net = cv2.dnn.readNetFromDarknet(CONFIG_PATH, MODEL_PATH)
         except:
@@ -87,17 +95,18 @@ class YOLO:
 
         return iw, ih, inference_time, results
     
-    def __call__(self, frame: np.ndarray) -> Union[np.ndarray, None]:
+    def __call__(self, rgb_frame: np.ndarray) -> Union[np.ndarray, None]:
         """
         For now it will track 1 hand only.
         """
-        width, height, inference_time, results = self.inference(frame)
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+        width, height, inference_time, results = self.inference(bgr_frame)
         # sort by confidence
         results.sort(key=lambda x: x[2])
         # how many hands should be shown
         if len(results) > 0:
             id, name, confidence, x, y, w, h = results[0]
-            return frame[y:y+h, x:x+w]
+            return rgb_frame[y:y+h, x:x+w]
         else:
             return None
 

@@ -7,6 +7,14 @@ import tensorflow as tf
 
 if __name__ != "__main__":
     from .dependencies.non_maximum_suppression import non_max_suppression_fast
+    PARENT_PATH = os.path.join("hand_detectors", "blazepalm")
+else:
+    from dependencies.non_maximum_suppression import non_max_suppression_fast
+    PARENT_PATH = '.'
+
+TFLITE_PATH = os.path.join(PARENT_PATH, 'dependencies',
+                           'palm_detection_without_custom_op.tflite')
+ANCHOR_PATH = os.path.join(PARENT_PATH, 'dependencies', 'anchors.csv')
 
 class BlazePalm():
     r"""
@@ -30,12 +38,11 @@ class BlazePalm():
         self.box_shift = box_shift
         self.box_enlarge = box_enlarge
 
-        self.interp_palm = tf.lite.Interpreter(
-            os.path.join('.', 'dependencies', 'palm_detection_without_custom_op.tflite'))
+        self.interp_palm = tf.lite.Interpreter(TFLITE_PATH)
         self.interp_palm.allocate_tensors()
 
         # reading the SSD anchors
-        with open(os.path.join('.', 'dependencies', 'anchors.csv'), 'r') as csv_f:
+        with open(ANCHOR_PATH, 'r') as csv_f:
             self.anchors = np.r_[
                 [x for x in csv.reader(csv_f, quoting=csv.QUOTE_NONNUMERIC)]
             ]
@@ -181,13 +188,11 @@ class BlazePalm():
         img_norm = self._im_normalize(img_small)
         return img_pad, img_norm, pad
 
-    def __call__(self, img):
+    def pred_kp_and_box(self, img):
         img_pad, img_norm, pad = self.preprocess_img(img)
-
         source, keypoints, _ = self.detect_hand(img_norm)
         if source is None:
             return None, None
-
         # calculating transformation from img_pad coords
         # to img_landmark coords (cropped hand image)
         scale = max(img.shape) / 256
@@ -195,24 +200,21 @@ class BlazePalm():
             source * scale,
             self._target_triangle
         )
-
         # adding the [0,0,1] row to make the matrix square
         Mtr = self._pad1(Mtr.T).T
         Mtr[2, :2] = 0
-
         Minv = np.linalg.inv(Mtr)
-
         kp_orig = []
-
         # projecting keypoints back into original image coordinate space
-
         box_orig = (self._target_box @ Minv.T)[:, :2]
         box_orig -= pad[::-1]
-
         return kp_orig, box_orig
+    
+    def __call__(self, img):
+        points, bbox = self.pred_kp_and_box(img)
+
 
 if __name__ == '__main__':
-    from dependencies.non_maximum_suppression import non_max_suppression_fast
     hand_tracker = BlazePalm()
     WINDOW = "Hand Tracking"
     POINT_COLOR = (0, 255, 0)
@@ -223,7 +225,7 @@ if __name__ == '__main__':
     cv2.namedWindow(WINDOW)
     while hasFrame:
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        points, bbox = hand_tracker(image)
+        points, bbox = hand_tracker.pred_kp_and_box(image)
         if points is not None:
             cv2.line(frame, (int(bbox[0][0]), int(bbox[0][1])), (int(
                 bbox[1][0]), int(bbox[1][1])), CONNECTION_COLOR, THICKNESS)
