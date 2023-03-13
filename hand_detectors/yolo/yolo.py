@@ -6,7 +6,7 @@ import numpy as np
 from typing import Union
 
 if __name__ != '__main__':
-    PARENT_PATH = 'hand_detectors/yolo'
+    PARENT_PATH = os.path.join('hand_detectors','yolo')
 else:
     PARENT_PATH = '.'
 
@@ -15,7 +15,7 @@ MODEL_PATH = os.path.join(PARENT_PATH, "dependencies", "cross-hands-tiny.weights
 
 
 class YOLO:
-    def __init__(self, size=416, confidence=0.5, threshold=0.3):
+    def __init__(self, size=416, confidence=0.2, threshold=0.2):
         self.confidence = confidence
         self.threshold = threshold
         self.size = size
@@ -40,8 +40,7 @@ class YOLO:
     def inference(self, image):
         ih, iw = image.shape[:2]
 
-        blob = cv2.dnn.blobFromImage(
-            image, 1 / 255.0, (self.size, self.size), swapRB=True, crop=False)
+        blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (self.size, self.size), swapRB=True, crop=False)
         self.net.setInput(blob)
         start = time.time()
         layerOutputs = self.net.forward(self.output_names)
@@ -78,9 +77,8 @@ class YOLO:
                     boxes.append([x, y, int(width), int(height)])
                     confidences.append(float(confidence))
                     classIDs.append(classID)
-
-        idxs = cv2.dnn.NMSBoxes(
-            boxes, confidences, self.confidence, self.threshold)
+        
+        idxs = cv2.dnn.NMSBoxes(boxes, confidences, self.confidence, self.threshold)
 
         results = []
         if len(idxs) > 0:
@@ -94,7 +92,8 @@ class YOLO:
                 results.append((id, self.labels[id], confidence, x, y, w, h))
 
         return iw, ih, inference_time, results
-    
+
+
     def __call__(self, rgb_frame: np.ndarray) -> Union[np.ndarray, None]:
         """
         For now it will track 1 hand only.
@@ -106,7 +105,7 @@ class YOLO:
         # how many hands should be shown
         if len(results) > 0:
             id, name, confidence, x, y, w, h = results[0]
-            return rgb_frame[y:y+h, x:x+w]
+            return [x, y, x+w, y+h]
         else:
             return None
 
@@ -128,6 +127,7 @@ if __name__ == '__main__':
         # how many hands should be shown
         hand_count = 1
         # display hands
+        print(results)
         for detection in results[:hand_count]:
             id, name, confidence, x, y, w, h = detection
             cx = x + (w / 2)
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                         0.5, color, 2)
         cv2.imshow("preview", frame)
         rval, frame = vc.read()
-        key = cv2.waitKey(20)
+        key = cv2.waitKey(1)
         if key == 27:  # exit on ESC
             break
 
