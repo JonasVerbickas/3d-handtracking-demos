@@ -15,12 +15,13 @@ else:
 TFLITE_PATH = os.path.join(PARENT_PATH, 'dependencies',
                            'palm_detection_without_custom_op.tflite')
 ANCHOR_PATH = os.path.join(PARENT_PATH, 'dependencies', 'anchors.csv')
+CONFINDENCE_THRESHOLD = 0.5
 
 class BlazePalm():
     r"""
     Class to use Google's Mediapipe HandTracking pipeline from Python.
     So far only detection of a single hand is supported.
-    Any any image size and aspect ratio supported.
+    Any image size and aspect ratio supported.
 
     Args:
         palm_model: path to the palm_detection.tflite
@@ -57,7 +58,7 @@ class BlazePalm():
         # 90° rotation matrix used to create the alignment trianlge
         self.R90 = np.r_[[[0, 1], [-1, 0]]]
 
-        # trianlge target coordinates used to move the detected hand
+        # triangle target coordinates used to move the detected hand
         # into the right position
         self._target_triangle = np.float32([
             [128, 128],
@@ -73,10 +74,8 @@ class BlazePalm():
 
     def _get_triangle(self, kp0, kp2, dist=1):
         """get a triangle used to calculate Affine transformation matrix"""
-
         dir_v = kp2 - kp0
         dir_v /= np.linalg.norm(dir_v)
-
         dir_v_r = dir_v @ self.R90.T
         return np.float32([kp2, kp2+dir_v*dist, kp2 + dir_v_r*dist])
 
@@ -129,7 +128,7 @@ class BlazePalm():
 
         # finding the best prediction
         probabilities = self._sigm(out_clf)
-        detecion_mask = probabilities > 0.5
+        detecion_mask = probabilities > CONFINDENCE_THRESHOLD 
         candidate_detect = out_reg[detecion_mask]
         candidate_anchors = self.anchors[detecion_mask]
         probabilities = probabilities[detecion_mask]
@@ -184,15 +183,14 @@ class BlazePalm():
             mode='constant')
         img_small = cv2.resize(img_pad, (256, 256))
         img_small = np.ascontiguousarray(img_small)
-
         img_norm = self._im_normalize(img_small)
         return img_pad, img_norm, pad
 
-    def pred_kp_and_box(self, img):
+    def pred_bbox(self, img):
         img_pad, img_norm, pad = self.preprocess_img(img)
         source, keypoints, _ = self.detect_hand(img_norm)
         if source is None:
-            return None, None
+            return None
         # calculating transformation from img_pad coords
         # to img_landmark coords (cropped hand image)
         scale = max(img.shape) / 256
@@ -204,15 +202,14 @@ class BlazePalm():
         Mtr = self._pad1(Mtr.T).T
         Mtr[2, :2] = 0
         Minv = np.linalg.inv(Mtr)
-        kp_orig = []
         # projecting keypoints back into original image coordinate space
         box_orig = (self._target_box @ Minv.T)[:, :2]
         box_orig -= pad[::-1]
-        return kp_orig, box_orig
+        return box_orig
     
     def __call__(self, img):
-        points, bbox = self.pred_kp_and_box(img)
-
+        bbox = self.pred_bbox(img)
+        return bbox
 
 if __name__ == '__main__':
     hand_tracker = BlazePalm()
@@ -225,17 +222,25 @@ if __name__ == '__main__':
     cv2.namedWindow(WINDOW)
     while hasFrame:
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        points, bbox = hand_tracker.pred_kp_and_box(image)
-        if points is not None:
+        bbox = hand_tracker.pred_bbox(image)
+        if bbox is not None:
+            print('bbox', bbox)
+            cv2.circle(frame, np.int32(bbox[0]), 8, (0,0,255))
             cv2.line(frame, (int(bbox[0][0]), int(bbox[0][1])), (int(
                 bbox[1][0]), int(bbox[1][1])), CONNECTION_COLOR, THICKNESS)
+            cv2.circle(frame, np.int32(bbox[1]), 8, (0,255,0))
             cv2.line(frame, (int(bbox[1][0]), int(bbox[1][1])), (int(
                 bbox[2][0]), int(bbox[2][1])), CONNECTION_COLOR, THICKNESS)
+            cv2.circle(frame, np.int32(bbox[2]), 8, (255,0,0))
             cv2.line(frame, (int(bbox[2][0]), int(bbox[2][1])), (int(
                 bbox[3][0]), int(bbox[3][1])), CONNECTION_COLOR, THICKNESS)
+            cv2.circle(frame, np.int32(bbox[3]), 8, (255,255,255))
             cv2.line(frame, (int(bbox[3][0]), int(bbox[3][1])), (int(
                 bbox[0][0]), int(bbox[0][1])), CONNECTION_COLOR, THICKNESS)
-
+            Mtr = cv2.getAffineTransform(
+                        np.array(bbox[:3]).astype(np.float32),
+                        np.array([[0,0], [255, 0], [255, 255]]).astype(np.float32))
+            frame = cv2.warpAffine(frame, Mtr, (frame.shape[1], frame.shape[0]))
         cv2.imshow(WINDOW, frame)
         hasFrame, frame = capture.read()
         key = cv2.waitKey(1)

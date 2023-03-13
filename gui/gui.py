@@ -23,7 +23,10 @@ class GUI:
         Blocking function
         """
         while dpg.is_dearpygui_running():
-            frame = self.model.get_new_annotated_frame()
+            frame, cropped = self.model.get_new_annotated_frame()
             self.view.update_main_frame(frame)
+            if cropped is not None:
+                print("cropped.shape", cropped.shape)
+                self.view.update_cropped_frame(cropped)
         self.model.cap.release()
         dpg.destroy_context()

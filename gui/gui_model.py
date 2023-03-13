@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from typing import Tuple
-from pose_estimators.mediapipe_estimator import MediaPipeJointEstimator
+from pose_estimators.mediapipe_estimator import MediaPipeE2E
 from pose_estimators.identity import Identity
 from hand_detectors.blazepalm.blazepalm import BlazePalm
 from hand_detectors.yolo.yolo import YOLO
@@ -19,13 +19,13 @@ class Model:
     
     def load_keypoint_estimator(self, keypoint_estimator: KeypointEstimatorEnum) -> None:
         if keypoint_estimator == KeypointEstimatorEnum.MEDIAPIPE:
-            self.keypoint_estimator = MediaPipeJointEstimator()
+            self.keypoint_estimator = MediaPipeE2E()
         else:
             self.keypoint_estimator = Identity()
     
     def load_palm_detector(self, palm_detector: PalmDetectorEnum) -> None:
-        self.palm_detector = YOLO()
-        # self.palm_detector = BlazePalm()
+        # self.palm_detector = YOLO()
+        self.palm_detector = BlazePalm()
 
     def init_camera(self) -> Tuple[int,int]:
         """
@@ -50,13 +50,25 @@ class Model:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # 2. if model requires it crop a hand before estimation
         if self.keypoint_estimator.requires_detector:
-            detected_hand = self.palm_detector(frame)
+            bbox = self.palm_detector(frame)
+            if bbox is None:
+                return frame, None
+            # 2.1 cut out the bbox
+            Mtr = cv2.getAffineTransform(
+                        np.array(bbox[:3]).astype(np.float32),
+                        np.array([[0,0], [255, 0], [255, 255]]).astype(np.float32))
+            warped_img = cv2.warpAffine(frame, Mtr, (frame.shape[1], frame.shape[0]))
+            detected_hand = (warped_img[:256, :256, :]).copy()
         else:
             detected_hand = frame
         # 3. project cropped estimation back on the image
-        # TODO
+        image_with_pred = self.keypoint_estimator(detected_hand)
+        if self.keypoint_estimator.requires_detector:
+            warped_img[:256, :256, :] = image_with_pred
+            iMtr = cv2.invertAffineTransform(Mtr)
+            image_with_pred = cv2.warpAffine(warped_img, iMtr, (frame.shape[1], frame.shape[0]))
         # 4. return both the cropped result and estimation
-        return detected_hand, self.keypoint_estimator(detected_hand)
+        return image_with_pred, detected_hand
         
 
         
