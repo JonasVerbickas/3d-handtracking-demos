@@ -1,7 +1,7 @@
 import mediapipe as mp
 import numpy as np
 
-class MediaPipeJointEstimator:
+class MediaPipeE2E:
     def __init__(self):
         self._mp_drawing = mp.solutions.drawing_utils
         self._mp_drawing_styles = mp.solutions.drawing_styles

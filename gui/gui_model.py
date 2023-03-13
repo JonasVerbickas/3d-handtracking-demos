@@ -1,13 +1,17 @@
 import cv2
 import numpy as np
 from typing import Tuple
-from pose_estimators.mediapipe_estimator import MediaPipeE2E
-from pose_estimators.identity import Identity
-from hand_detectors.blazepalm.blazepalm import BlazePalm
-from hand_detectors.yolo.yolo import YOLO
-from consts.keypoint_estimator_enum import KeypointEstimatorEnum
-from consts.palm_detector_enum import PalmDetectorEnum
+# consts
 import consts.intial_values as intial_values   
+from consts.palm_detector_enum import PalmDetectorEnum
+from consts.keypoint_estimator_enum import KeypointEstimatorEnum
+# hand detectors
+from hand_detectors.yolo.yolo import YOLO
+from hand_detectors.blazepalm.blazepalm import BlazePalm
+from pose_estimators.meshformer import MeshFormer
+# keypoint estimators
+from pose_estimators.identity import Identity
+from pose_estimators.mediapipe_estimator import MediaPipeE2E
 
 class Model:
     def __init__(self):
@@ -20,12 +24,16 @@ class Model:
     def load_keypoint_estimator(self, keypoint_estimator: KeypointEstimatorEnum) -> None:
         if keypoint_estimator == KeypointEstimatorEnum.MEDIAPIPE:
             self.keypoint_estimator = MediaPipeE2E()
+        elif keypoint_estimator == KeypointEstimatorEnum.MESHFORMER:
+            self.keypoint_estimator = MeshFormer()
         else:
             self.keypoint_estimator = Identity()
     
     def load_palm_detector(self, palm_detector: PalmDetectorEnum) -> None:
-        # self.palm_detector = YOLO()
-        self.palm_detector = BlazePalm()
+        if palm_detector == PalmDetectorEnum.YOLO:
+            self.palm_detector = YOLO()
+        else:
+            self.palm_detector = BlazePalm()
 
     def init_camera(self) -> Tuple[int,int]:
         """
@@ -50,12 +58,13 @@ class Model:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # 2. if model requires it crop a hand before estimation
         if self.keypoint_estimator.requires_detector:
-            bbox = self.palm_detector(frame)
-            if bbox is None:
+            hand_bbox = self.palm_detector(frame)
+            if hand_bbox is None:
                 return frame, None
+            # print('bbox', hand_bbox)
             # 2.1 cut out the bbox
             Mtr = cv2.getAffineTransform(
-                        np.array(bbox[:3]).astype(np.float32),
+                        np.array(hand_bbox[:3]).astype(np.float32),
                         np.array([[0,0], [255, 0], [255, 255]]).astype(np.float32))
             warped_img = cv2.warpAffine(frame, Mtr, (frame.shape[1], frame.shape[0]))
             detected_hand = (warped_img[:256, :256, :]).copy()

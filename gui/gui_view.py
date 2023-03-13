@@ -5,7 +5,7 @@ from consts.keypoint_estimator_enum import KeypointEstimatorEnum
 from consts.palm_detector_enum import PalmDetectorEnum
 
 class View:
-    def __init__(self, video_width, video_height, keypoint_estimator_callback):
+    def __init__(self, video_width, video_height, keypoint_estimator_callback, hand_det_callback):
         dpg.create_context()
         # dpg.configure_app(docking=True, docking_space=True)
         dpg.create_viewport(title="Hand Tracking Demo")
@@ -15,16 +15,16 @@ class View:
                                 default_value=[], tag="frame")
             dpg.add_raw_texture(256, 256, default_value=[], tag="cropped_frame")
         with dpg.window(label='Webcam Footage', tag="main_window", no_resize=True, no_title_bar=True,
-                        no_move=True, no_collapse=True, no_bring_to_front_on_focus=True):
+                        no_move=True, no_collapse=True, no_close=True, no_bring_to_front_on_focus=True):
             dpg.add_image("frame")
         with dpg.window(label='Cropped Webcam Footage', tag="cropped_window",
-                        no_resize=True, width=256, height=256):
+                        no_resize=True, no_close=True, width=256, height=256):
             dpg.add_image("cropped_frame")
-        with dpg.window(label="Model Selector", width=300):
+        with dpg.window(label="Model Selector", width=300, no_close=True, no_resize=True):
             dpg.add_combo([k.name for k in KeypointEstimatorEnum], default_value=str("Please select an estimator you'd like to use"),
                           width=250, tag='keypoint_estimator_combo', callback=keypoint_estimator_callback)
             dpg.add_combo([k.name for k in PalmDetectorEnum], default_value=str(list(PalmDetectorEnum)[0]),
-                          width=250, tag='palm_detector_combo', callback=keypoint_estimator_callback, show=False)
+                          width=250, tag='palm_detector_combo', callback=hand_det_callback, show=False)
         dpg.show_viewport()
         dpg.set_primary_window('main_window', False)
 
